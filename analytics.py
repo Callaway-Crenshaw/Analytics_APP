@@ -223,10 +223,10 @@ if not dispatches_df.empty:
 
     st.markdown("---")
 
-    # --- Bar Chart: Average Ticket Count per Site ---
-    with st.expander("### **Average Ticket Count per Site**"):
+    # --- Average Ticket Count per Site & Month ---
+    with st.expander("### **Average Ticket Count per Site & Month**"):
         # Display the charts in columns for a clean layout
-        col_site, col_month = st.columns(1)
+        col_site, col_month = st.columns(2)
         
         # --- Chart 1: Average Ticket Count per Site (Monthly) ---
         with col_site:
@@ -253,7 +253,28 @@ if not dispatches_df.empty:
                 title='Avg. Ticket Count per Site (Monthly)'
             )
             st.altair_chart(bar_chart_site, use_container_width=True)
-        st.markdown("---")
+            
+        # --- Chart 2: Average Ticket Count per Month ---
+        with col_month:
+            st.subheader("Per Month")
+            # Group by month and calculate average ticket count
+            tickets_by_month = dispatches_df.groupby('month_year_str').agg(
+                count=('CheckInDate', 'count')
+            ).reset_index()
+
+            # Create the line chart
+            line_chart_month = alt.Chart(tickets_by_month).mark_line(point=True).encode(
+                x=alt.X('month_year_str', title='Month', sort=None, axis=alt.Axis(labelAngle=-45)),
+                y=alt.Y('count', title='Ticket Count'),
+                tooltip=[
+                    alt.Tooltip('month_year_str', title='Month'),
+                    alt.Tooltip('count', title='Tickets', format=',')
+                ]
+            ).properties(
+                title='Ticket Count per Month'
+            )
+            st.altair_chart(line_chart_month, use_container_width=True)
+    st.markdown("---")
 
 
     # --- Pie Chart: Subtype & Site Breakdown ---
@@ -361,5 +382,6 @@ if not dispatches_df.empty:
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+
 
 
