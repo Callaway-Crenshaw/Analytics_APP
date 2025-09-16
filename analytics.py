@@ -316,7 +316,7 @@ if not dispatches_df.empty:
             )
 
 
-        # --- RIGHT COLUMN: Site Breakdown Table ---
+        # --- RIGHT COLUMN: Site Breakdown Table -> NOW BAR CHART ---
         with col2:
             if selected_subtype != 'All Subtypes':
                 # Filter data for the selected subtype
@@ -329,7 +329,21 @@ if not dispatches_df.empty:
                     ).reset_index()
 
                     st.markdown(f'#### Site Breakdown for "{selected_subtype}" ({selected_breakdown_month_pie})')
-                    st.dataframe(site_breakdown, use_container_width=True, hide_index=True)
+                    
+                    # Create the bar chart for site breakdown
+                    bar_chart_site_breakdown = alt.Chart(site_breakdown).mark_bar().encode(
+                        x=alt.X('Site', title='Site', sort='-y'), # Sort bars by count in descending order
+                        y=alt.Y('count', title='Ticket Count'),
+                        tooltip=[
+                            alt.Tooltip('Site', title='Site'),
+                            alt.Tooltip('count', title='Tickets', format=',')
+                        ]
+                    ).properties(
+                        title=f'Site Breakdown for "{selected_subtype}"'
+                    )
+                    
+                    st.altair_chart(bar_chart_site_breakdown, use_container_width=True)
+
                 else:
                     st.info("No site data found for this subtype.")
             else:
