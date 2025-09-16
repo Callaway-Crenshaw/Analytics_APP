@@ -225,26 +225,36 @@ if not dispatches_df.empty:
 
     # --- Bar Chart: Average Ticket Count per Site ---
     with st.expander("### **Average Ticket Count per Site**"):
-        # Calculate average tickets by site
-        avg_tickets_by_site = dispatches_df.groupby('Site').agg(
-            avg_tickets=('CheckInDate', 'count')
-        ).reset_index()
-
-        # Create the new bar chart
-        bar_chart_site = alt.Chart(avg_tickets_by_site).mark_bar().encode(
-            x=alt.X('Site', title='Site', sort=None),
-            y=alt.Y('avg_tickets', title='Average Ticket Count'),
-            tooltip=[
-                alt.Tooltip('Site', title='Site'),
-                alt.Tooltip('avg_tickets', title='Average Tickets', format='.2f')
-            ]
-        ).properties(
-            title='Average Ticket Count per Site'
-        )
+        # Display the charts in columns for a clean layout
+        col_site, col_month = st.columns(2)
         
-        st.altair_chart(bar_chart_site, use_container_width=True)
-    
-    st.markdown("---")
+        # --- Chart 1: Average Ticket Count per Site (Monthly) ---
+        with col_site:
+            st.subheader("Per Site")
+            # Calculate average tickets by site per month
+            tickets_per_site_per_month = dispatches_df.groupby(['Site', 'month_year_str']).agg(
+                count=('CheckInDate', 'count')
+            ).reset_index()
+
+            # Calculate the average monthly ticket count per site
+            avg_tickets_by_site = tickets_per_site_per_month.groupby('Site').agg(
+                avg_tickets=('count', 'mean')
+            ).reset_index()
+            
+            # Create the bar chart
+            bar_chart_site = alt.Chart(avg_tickets_by_site).mark_bar().encode(
+                x=alt.X('Site', title='Site', sort=None),
+                y=alt.Y('avg_tickets', title='Avg. Monthly Ticket Count'),
+                tooltip=[
+                    alt.Tooltip('Site', title='Site'),
+                    alt.Tooltip('avg_tickets', title='Avg. Tickets', format='.2f')
+                ]
+            ).properties(
+                title='Avg. Ticket Count per Site (Monthly)'
+            )
+            st.altair_chart(bar_chart_site, use_container_width=True)
+        st.markdown("---")
+
 
     # --- Pie Chart: Subtype & Site Breakdown ---
     with st.expander("### **Subtype & Site Breakdown**", expanded=True):
@@ -351,3 +361,4 @@ if not dispatches_df.empty:
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+
