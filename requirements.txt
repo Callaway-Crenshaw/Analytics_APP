@@ -1,0 +1,6 @@
+streamlit
+supabase
+pandas
+matplotlib
+altair
+statsmodels
