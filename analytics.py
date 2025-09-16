@@ -226,7 +226,7 @@ if not dispatches_df.empty:
     # --- Bar Chart: Average Ticket Count per Site ---
     with st.expander("### **Average Ticket Count per Site**"):
         # Display the charts in columns for a clean layout
-        col_site, col_month = st.columns(2)
+        col_site, col_month = st.columns(1)
         
         # --- Chart 1: Average Ticket Count per Site (Monthly) ---
         with col_site:
@@ -361,4 +361,5 @@ if not dispatches_df.empty:
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+
 
