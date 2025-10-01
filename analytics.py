@@ -209,77 +209,64 @@ if not dispatches_df.empty:
             avg_pnl_per_ticket=('PNL', 'mean')
         ).reset_index()
 
-        # Calculate monthly profit/loss
+        # Calculate monthly profit/loss (still needed for context, but not charted)
         monthly_data['profit_loss'] = monthly_data['total_dxc_cost'] - monthly_data['total_fn_pay']
         monthly_data['profit_loss_with_fee'] = monthly_data['profit_loss'] + PM_FEE
         
         # Add a new column with formatted month/year string for the x-axis labels
         monthly_data['month_label'] = monthly_data['CheckInDate'].dt.strftime('%m/%y')
-
-        # New radio button for chart options
-        chart_selection = st.radio(
-            "Select a Trend Chart to view:", 
-            ("Count & Total Money", "Average & Efficiency"), 
-            horizontal=True
-        )
         
-        if chart_selection == "Count & Total Money":
-            # Create the first dual-axis chart for Tickets vs Total P/L
-            tickets_line = alt.Chart(monthly_data).mark_line(point=True, color='blue').encode(
-                x=alt.X('month_label', axis=alt.Axis(title=None, labelAngle=-45)),
-                y=alt.Y('total_tickets', title='Number of Tickets', axis=alt.Axis(titleColor='blue')),
-                tooltip=[
-                    alt.Tooltip('month_label', title='Month'),
-                    alt.Tooltip('total_tickets', title='Total Tickets', format=','),
-                    alt.Tooltip('profit_loss_with_fee', title='Profit/Loss', format='$,.2f')
-                ]
-            )
-            
-            # Melt the data for the total P/L chart
-            total_pnl_data = monthly_data.melt(
-                id_vars=['month_label'], 
-                value_vars=['profit_loss', 'profit_loss_with_fee'],
-                var_name='Metric',
-                value_name='Value'
-            )
-            total_pnl_chart = alt.Chart(total_pnl_data).mark_line(point=True).encode(
-                x=alt.X('month_label', axis=alt.Axis(title=None, labelAngle=-45)),
-                y=alt.Y('Value', title='Total P/L ($)', axis=alt.Axis(titleColor='orange')),
-                color=alt.Color('Metric', title='Metric', scale=alt.Scale(range=['orange', 'red'])),
-                tooltip=[
-                    alt.Tooltip('month_label', title='Month'),
-                    alt.Tooltip('Value', title='Amount', format='$,.2f')
-                ]
-            )
+        # Create a consistent sort order (oldest to newest)
+        month_sort_order = monthly_data['month_label'].tolist()
 
-            combined_chart = alt.layer(tickets_line, total_pnl_chart).resolve_scale(y='independent')
-            st.altair_chart(combined_chart, use_container_width=True)
+        # --- CHART 1: Number of Tickets ---
+        st.markdown("#### Number of Tickets Over Time")
+        
+        tickets_chart = alt.Chart(monthly_data).mark_line(point=True, color='#1f77b4').encode(
+            x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
+            y=alt.Y('total_tickets', title='Number of Tickets', axis=alt.Axis(titleColor='#1f77b4')),
+            tooltip=[
+                alt.Tooltip('month_label', title='Month'),
+                alt.Tooltip('total_tickets', title='Total Tickets', format=','),
+            ]
+        ).properties(
+            title="Monthly Ticket Volume"
+        ).interactive()
 
-        elif chart_selection == "Average & Efficiency":
-            # Create the second dual-axis chart for Avg Time vs Avg P/L
-            avg_time_chart = alt.Chart(monthly_data).mark_line(point=True, color='purple').encode(
-                x=alt.X('month_label', axis=alt.Axis(title=None, labelAngle=-45)),
-                y=alt.Y('avg_hours', title='Avg. Time (hrs)', axis=alt.Axis(titleColor='purple', titlePadding=20, labelPadding=5)),
-                tooltip=[
-                    alt.Tooltip('month_label', title='Month'),
-                    alt.Tooltip('avg_hours', title='Avg. Time', format='.2f'),
-                    alt.Tooltip('avg_pnl_per_ticket', title='Avg P/L per Ticket', format='$,.2f')
-                ]
-            )
-            
-            avg_pnl_chart = alt.Chart(monthly_data).mark_line(point=True, color='green').encode(
-                x=alt.X('month_label', axis=alt.Axis(title=None, labelAngle=-45)),
-                y=alt.Y('avg_pnl_per_ticket', title='Avg. P/L per Ticket ($)', axis=alt.Axis(titleColor='green', titlePadding=20, labelPadding=5)),
-                tooltip=[
-                    alt.Tooltip('month_label', title='Month'),
-                    alt.Tooltip('avg_hours', title='Avg. Time', format='.2f'),
-                    alt.Tooltip('avg_pnl_per_ticket', title='Avg P/L per Ticket', format='$,.2f')
-                ]
-            )
-            
-            combined_chart = alt.layer(avg_time_chart, avg_pnl_chart).resolve_scale(y='independent')
-            st.altair_chart(combined_chart, use_container_width=True)
+        st.altair_chart(tickets_chart, use_container_width=True)
+        
+        # --- CHART 2: Average Time to Close ---
+        st.markdown("#### Average Time to Close")
 
+        avg_time_chart = alt.Chart(monthly_data).mark_line(point=True, color='#9467bd').encode(
+            x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
+            y=alt.Y('avg_hours', title='Avg. Time (Hours)', axis=alt.Axis(titleColor='#9467bd')),
+            tooltip=[
+                alt.Tooltip('month_label', title='Month'),
+                alt.Tooltip('avg_hours', title='Avg. Time', format='.2f'),
+            ]
+        ).properties(
+            title="Monthly Average Hours per Ticket"
+        ).interactive()
+        
+        st.altair_chart(avg_time_chart, use_container_width=True)
+
+        # --- CHART 3: Average P/L per Ticket ---
+        st.markdown("#### Average Profit/Loss per Ticket")
+        
+        avg_pnl_chart = alt.Chart(monthly_data).mark_line(point=True, color='#2ca02c').encode(
+            x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
+            y=alt.Y('avg_pnl_per_ticket', title='Avg. P/L per Ticket ($)', axis=alt.Axis(titleColor='#2ca02c', format='$,.0f')),
+            tooltip=[
+                alt.Tooltip('month_label', title='Month'),
+                alt.Tooltip('avg_pnl_per_ticket', title='Avg P/L per Ticket', format='$,.2f')
+            ]
+        ).properties(
+            title="Monthly Average Profit/Loss"
+        ).interactive()
+
+        st.altair_chart(avg_pnl_chart, use_container_width=True)
+        
     st.markdown("---")
 
     # --- Average Ticket Count per Site & Month ---
