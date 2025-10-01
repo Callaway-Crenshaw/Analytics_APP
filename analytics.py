@@ -78,6 +78,57 @@ if not dispatches_df.empty:
         
         with col3:
             st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
+    # --- Line Chart Section ---
+    st.markdown("### Monthly Financial Trend")
+
+    # 1. Group the entire DataFrame (not just the selected month) by 'month_year_str'
+    monthly_summary_df = dispatches_df.groupby('month_year_str').agg(
+        total_dxc_cost=('DXC_Cost_Calc', 'sum'),
+        total_fn_pay=('Total FN Pay', 'sum')
+    ).reset_index()
+
+    # 2. Calculate the required metrics for ALL months
+    # Note: You need a defined PM_FEE constant available here. 
+    # Assuming PM_FEE is defined globally or earlier in your script.
+    if 'PM_FEE' not in locals() and 'PM_FEE' not in globals():
+        # Placeholder for safety, replace with your actual defined PM_FEE
+        PM_FEE = 0 
+
+    monthly_summary_df['Total Billed'] = monthly_summary_df['total_dxc_cost'] + 6000
+    monthly_summary_df['Profit/Loss'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
+    monthly_summary_df['Profit/Loss + PM Fee'] = monthly_summary_df['Profit/Loss'] + PM_FEE
+
+    # 3. Rename the 'total_fn_pay' column for cleaner chart labeling
+    monthly_summary_df.rename(columns={'total_fn_pay': 'Total FN Pay'}, inplace=True)
+
+    # 4. Prepare the data for Altair by melting it (long format)
+    chart_data = monthly_summary_df.melt(
+        id_vars=['month_year_str'],
+        value_vars=['Total Billed', 'Total FN Pay', 'Profit/Loss + PM Fee'],
+        var_name='Metric',
+        value_name='Value'
+    )
+
+    # 5. Create the Altair line chart
+    import altair as alt
+
+    chart = alt.Chart(chart_data).mark_line(point=True).encode(
+        # X-axis: Month, sorted chronologically. Convert to datetime for proper sorting.
+        x=alt.X('month_year_str', sort=monthly_options, title="Month"),
+        # Y-axis: The financial 'Value'
+        y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
+        # Color/Legend: Distinguish the metrics
+        color='Metric',
+        # Tooltip for interactivity
+        tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+    ).properties(
+        # Set the chart title
+        title='Total Billed, Pay, and Profit/Loss over Time'
+    ).interactive() # Allows for zooming and panning
+
+    st.altair_chart(chart, use_container_width=True)
+
+    # --- End of Line Chart Section ---
 
     st.markdown("---")
 
