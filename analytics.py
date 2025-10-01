@@ -62,23 +62,21 @@ if not dispatches_df.empty:
         
         # Calculate metrics for the selected month
         total_dxc_cost = selected_month_df['DXC_Cost_Calc'].sum()
+        total_billed = total_dxc_cost + 6000
         total_fn_pay = selected_month_df['Total FN Pay'].sum()
         profit_loss = total_dxc_cost - total_fn_pay
         profit_loss_with_fee = profit_loss + PM_FEE
         
         # Display the metrics
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric(label="Total DXC Cost:", value=f"${total_dxc_cost:,.2f}")
+            st.metric(label="Total Billed:", value=f"${total_billed:,.2f}")
         
         with col2:
             st.metric(label="Total FN Pay:", value=f"${total_fn_pay:,.2f}")
         
         with col3:
-            st.metric(label="Profit/Loss:", value=f"${profit_loss:,.2f}")
-        
-        with col4:
             st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
 
     st.markdown("---")
