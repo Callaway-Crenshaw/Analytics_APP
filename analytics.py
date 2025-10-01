@@ -114,7 +114,7 @@ if not dispatches_df.empty:
 
     chart = alt.Chart(chart_data).mark_line(point=True).encode(
         # X-axis: Month, sorted chronologically. Convert to datetime for proper sorting.
-        x=alt.X('month_year_str', sort=monthly_options, title="Month"),
+        x=alt.X('month_year_str', sort=month_options, title="Month"),
         # Y-axis: The financial 'Value'
         y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
         # Color/Legend: Distinguish the metrics
