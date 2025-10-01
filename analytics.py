@@ -29,8 +29,12 @@ def fetch_data():
 st.set_page_config(page_title="Analytics Dashboard", layout="wide")
 st.title("Analytics Reporting Dashboard 📊")
 
-# Fetch data once
 dispatches_df = fetch_data()
+
+# Define PM_FEE placeholder if not globally defined (to prevent errors in calculation)
+# Replace '0' with the actual constant value for PM_FEE if known.
+if 'PM_FEE' not in locals() and 'PM_FEE' not in globals():
+    PM_FEE = 0 
 
 if not dispatches_df.empty:
     # --- Pre-processing data for all sections ---
@@ -53,8 +57,11 @@ if not dispatches_df.empty:
         # Create month_year for the dropdown and for grouping
         dispatches_df['month_year_str'] = dispatches_df['CheckInDate'].dt.to_period('M').astype(str)
         
-        # Get a list of unique months to show in the dropdown, sorted
+        # Get a list of unique months for the dropdown (newest to oldest)
         month_options = sorted(dispatches_df['month_year_str'].unique(), reverse=True)
+        # Get a list of unique months for the chart (oldest to newest)
+        month_options_chronological = sorted(dispatches_df['month_year_str'].unique(), reverse=False)
+
         selected_month_str = st.selectbox("Select a Month", month_options)
         
         # Filter the dataframe for the selected month
@@ -78,6 +85,7 @@ if not dispatches_df.empty:
         
         with col3:
             st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
+            
     # --- Line Chart Section ---
     st.markdown("### Monthly Financial Trend")
 
@@ -88,12 +96,6 @@ if not dispatches_df.empty:
     ).reset_index()
 
     # 2. Calculate the required metrics for ALL months
-    # Note: You need a defined PM_FEE constant available here. 
-    # Assuming PM_FEE is defined globally or earlier in your script.
-    if 'PM_FEE' not in locals() and 'PM_FEE' not in globals():
-        # Placeholder for safety, replace with your actual defined PM_FEE
-        PM_FEE = 0 
-
     monthly_summary_df['Total Billed'] = monthly_summary_df['total_dxc_cost'] + 6000
     monthly_summary_df['Profit/Loss'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
     monthly_summary_df['Profit/Loss + PM Fee'] = monthly_summary_df['Profit/Loss'] + PM_FEE
@@ -109,24 +111,32 @@ if not dispatches_df.empty:
         value_name='Value'
     )
 
-    # 5. Create the Altair line chart
-    import altair as alt
-
-    chart = alt.Chart(chart_data).mark_line(point=True).encode(
-        # X-axis: Month, sorted chronologically. Convert to datetime for proper sorting.
-        x=alt.X('month_year_str', sort=month_options, title="Month"),
-        # Y-axis: The financial 'Value'
+    # 5. Create the Altair line chart (Line Layer)
+    line_chart = alt.Chart(chart_data).mark_line().encode(
+        # X-axis: Sorted OLDEST to NEWEST
+        x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
         y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
-        # Color/Legend: Distinguish the metrics
         color='Metric',
-        # Tooltip for interactivity
         tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-    ).properties(
-        # Set the chart title
-        title='Total Billed, Pay, and Profit/Loss over Time'
-    ).interactive() # Allows for zooming and panning
+    )
 
-    st.altair_chart(chart, use_container_width=True)
+    # 6. Create the Altair point chart (Point Layer - for bigger points)
+    point_layer = alt.Chart(chart_data).mark_point(
+        filled=True, 
+        size=100 # Adjusted point size
+    ).encode(
+        x=alt.X('month_year_str', sort=month_options_chronological),
+        y=alt.Y('Value'),
+        color='Metric',
+        tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+    )
+
+    # 7. Combine the layers and display the final chart
+    final_chart = (line_chart + point_layer).properties(
+        title='Total Billed, Pay, and Profit/Loss over Time'
+    ).interactive()
+
+    st.altair_chart(final_chart, use_container_width=True)
 
     # --- End of Line Chart Section ---
 
