@@ -87,58 +87,58 @@ if not dispatches_df.empty:
             st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
             
     # --- Line Chart Section ---
-    st.markdown("### Monthly Financial Trend")
+    with st.expander("### **Monthly Financial Trend**"):
 
-    # 1. Group the entire DataFrame (not just the selected month) by 'month_year_str'
-    monthly_summary_df = dispatches_df.groupby('month_year_str').agg(
-        total_dxc_cost=('DXC_Cost_Calc', 'sum'),
-        total_fn_pay=('Total FN Pay', 'sum')
-    ).reset_index()
+        # 1. Group the entire DataFrame (not just the selected month) by 'month_year_str'
+        monthly_summary_df = dispatches_df.groupby('month_year_str').agg(
+            total_dxc_cost=('DXC_Cost_Calc', 'sum'),
+            total_fn_pay=('Total FN Pay', 'sum')
+        ).reset_index()
 
-    # 2. Calculate the required metrics for ALL months
-    monthly_summary_df['Total Billed'] = monthly_summary_df['total_dxc_cost'] + 6000
-    monthly_summary_df['Profit/Loss'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
-    monthly_summary_df['Profit/Loss + PM Fee'] = monthly_summary_df['Profit/Loss'] + PM_FEE
+        # 2. Calculate the required metrics for ALL months
+        monthly_summary_df['Total Billed'] = monthly_summary_df['total_dxc_cost'] + 6000
+        monthly_summary_df['Profit/Loss'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
+        monthly_summary_df['Profit/Loss + PM Fee'] = monthly_summary_df['Profit/Loss'] + PM_FEE
 
-    # 3. Rename the 'total_fn_pay' column for cleaner chart labeling
-    monthly_summary_df.rename(columns={'total_fn_pay': 'Total FN Pay'}, inplace=True)
+        # 3. Rename the 'total_fn_pay' column for cleaner chart labeling
+        monthly_summary_df.rename(columns={'total_fn_pay': 'Total FN Pay'}, inplace=True)
 
-    # 4. Prepare the data for Altair by melting it (long format)
-    chart_data = monthly_summary_df.melt(
-        id_vars=['month_year_str'],
-        value_vars=['Total Billed', 'Total FN Pay', 'Profit/Loss + PM Fee'],
-        var_name='Metric',
-        value_name='Value'
-    )
+        # 4. Prepare the data for Altair by melting it (long format)
+        chart_data = monthly_summary_df.melt(
+            id_vars=['month_year_str'],
+            value_vars=['Total Billed', 'Total FN Pay', 'Profit/Loss + PM Fee'],
+            var_name='Metric',
+            value_name='Value'
+        )
 
-    # 5. Create the Altair line chart (Line Layer)
-    line_chart = alt.Chart(chart_data).mark_line().encode(
-        # X-axis: Sorted OLDEST to NEWEST
-        x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
-        y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
-        color='Metric',
-        tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-    )
+        # 5. Create the Altair line chart (Line Layer)
+        line_chart = alt.Chart(chart_data).mark_line().encode(
+            # X-axis: Sorted OLDEST to NEWEST
+            x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
+            y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
+            color='Metric',
+            tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+        )
 
-    # 6. Create the Altair point chart (Point Layer - for bigger points)
-    point_layer = alt.Chart(chart_data).mark_point(
-        filled=True, 
-        size=100 # Adjusted point size
-    ).encode(
-        x=alt.X('month_year_str', sort=month_options_chronological),
-        y=alt.Y('Value'),
-        color='Metric',
-        tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-    )
+        # 6. Create the Altair point chart (Point Layer - for bigger points)
+        point_layer = alt.Chart(chart_data).mark_point(
+            filled=True, 
+            size=100 # Adjusted point size
+        ).encode(
+            x=alt.X('month_year_str', sort=month_options_chronological),
+            y=alt.Y('Value'),
+            color='Metric',
+            tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+        )
 
-    # 7. Combine the layers and display the final chart
-    final_chart = (line_chart + point_layer).properties(
-        title='Total Billed, Pay, and Profit/Loss over Time'
-    ).interactive()
+        # 7. Combine the layers and display the final chart
+        final_chart = (line_chart + point_layer).properties(
+            title='Total Billed, Pay, and Profit/Loss over Time'
+        ).interactive()
 
-    st.altair_chart(final_chart, use_container_width=True)
+        st.altair_chart(final_chart, use_container_width=True)
 
-    # --- End of Line Chart Section ---
+        # --- End of Line Chart Section ---
 
     st.markdown("---")
 
