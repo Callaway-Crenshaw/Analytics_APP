@@ -85,7 +85,8 @@ if not dispatches_df.empty:
         
         with col3:
             st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
-            
+    st.markdown("---")
+
     # --- Line Chart Section ---
     with st.expander("### **Monthly Financial Trend**"):
 
