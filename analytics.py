@@ -162,7 +162,7 @@ if not dispatches_df.empty:
         avg_time_to_close = selected_breakdown_df['Hours'].mean()
         
         # 3. Average Profit/Loss per Ticket
-        avg_pnl_per_ticket = selected_breakdown_df['PNL'].mean()
+        avg_pnl_per_ticket = selected_breakdown_df['Adjusted_Profit'].mean()
         
         # Display the metrics
         with col_tickets:
@@ -207,7 +207,7 @@ if not dispatches_df.empty:
             total_dxc_cost=('DXC_Cost_Calc', 'sum'),
             total_fn_pay=('Total FN Pay', 'sum'),
             avg_hours=('Hours', 'mean'),
-            avg_pnl_per_ticket=('PNL', 'mean')
+            avg_pnl_per_ticket=('Adjusted_Profit', 'mean')
         ).reset_index()
 
         # Calculate monthly profit/loss (still needed for context, but not charted)
@@ -429,6 +429,7 @@ if not dispatches_df.empty:
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+
 
 
 
