@@ -18,13 +18,13 @@ if 'selection' not in st.session_state:
 
 PM_FEE = 6000
 
-# --- Professional Color Palette ---
-COLOR_BLUE    = "#1B3A6B"
-COLOR_TEAL    = "#1A7A8A"
-COLOR_GRAY    = "#6C757D"
-COLOR_GREEN   = "#1E7D4B"
-COLOR_AMBER   = "#C8781A"
-PALETTE       = [COLOR_BLUE, COLOR_TEAL, COLOR_GRAY, COLOR_GREEN, COLOR_AMBER]
+# --- Professional Color Palette: Cool Corporate ---
+COLOR_BLUE    = "#2563EB"
+COLOR_TEAL    = "#0EA5E9"
+COLOR_GRAY    = "#94A3B8"
+COLOR_GREEN   = "#10B981"
+COLOR_AMBER   = "#6366F1"
+PALETTE       = [COLOR_BLUE, COLOR_TEAL, COLOR_AMBER, COLOR_GREEN, COLOR_GRAY]
 
 def fetch_data():
     response = supabase_client.from_('live_dispatches').select("*").execute()
