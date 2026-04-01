@@ -19,16 +19,30 @@ if 'selection' not in st.session_state:
 PM_FEE = 6000
 
 # --- Professional Color Palette: Cool Corporate ---
-COLOR_BLUE    = "#2563EB"
-COLOR_TEAL    = "#0EA5E9"
-COLOR_GRAY    = "#94A3B8"
-COLOR_GREEN   = "#10B981"
-COLOR_AMBER   = "#6366F1"
-PALETTE       = [COLOR_BLUE, COLOR_TEAL, COLOR_AMBER, COLOR_GREEN, COLOR_GRAY]
+COLOR_BLUE  = "#2563EB"
+COLOR_TEAL  = "#0EA5E9"
+COLOR_GRAY  = "#94A3B8"
+COLOR_GREEN = "#10B981"
+COLOR_AMBER = "#6366F1"
+PALETTE     = [COLOR_BLUE, COLOR_TEAL, COLOR_AMBER, COLOR_GREEN, COLOR_GRAY]
 
+# --- Top-level helper functions ---
 def fetch_data():
     response = supabase_client.from_('live_dispatches').select("*").execute()
     return pd.DataFrame(response.data)
+
+def delta(curr, prev):
+    return curr - prev if prev is not None else None
+
+def fmt_delta(val):
+    if val is None:
+        return None
+    return f"-${abs(val):,.0f}" if val < 0 else f"${val:,.0f}"
+
+def fmt_delta_2f(val):
+    if val is None:
+        return None
+    return f"-${abs(val):,.2f}" if val < 0 else f"${val:,.2f}"
 
 # --- Page Config ---
 st.set_page_config(page_title="Operations & Revenue Intelligence Dashboard", layout="wide")
@@ -45,37 +59,34 @@ st.markdown("---")
 
 dispatches_df = fetch_data()
 
-if 'PM_FEE' not in locals() and 'PM_FEE' not in globals():
-    PM_FEE = 0
-
 if not dispatches_df.empty:
     # --- Pre-processing ---
-    dispatches_df['CheckInDate'] = pd.to_datetime(dispatches_df['CheckInDate'])
-    dispatches_df['Multiplier']     = pd.to_numeric(dispatches_df.get('Multiplier',     pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
-    dispatches_df['Total DXC Pay']  = pd.to_numeric(dispatches_df.get('Total DXC Pay',  pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
-    dispatches_df['Total FN Pay']   = pd.to_numeric(dispatches_df.get('Total FN Pay',   pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
-    dispatches_df['Hours']          = pd.to_numeric(dispatches_df.get('Hours',          pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
+    dispatches_df['CheckInDate']    = pd.to_datetime(dispatches_df['CheckInDate'])
+    dispatches_df['Multiplier']     = pd.to_numeric(dispatches_df.get('Multiplier',    pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
+    dispatches_df['Total DXC Pay']  = pd.to_numeric(dispatches_df.get('Total DXC Pay', pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
+    dispatches_df['Total FN Pay']   = pd.to_numeric(dispatches_df.get('Total FN Pay',  pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
+    dispatches_df['Hours']          = pd.to_numeric(dispatches_df.get('Hours',         pd.Series([0]*len(dispatches_df))), errors='coerce').fillna(0)
     dispatches_df['DXC_Cost_Calc']  = dispatches_df['Multiplier'] * dispatches_df['Total DXC Pay']
     dispatches_df['PNL']            = dispatches_df['DXC_Cost_Calc'] - dispatches_df['Total FN Pay']
     dispatches_df['month_year_str'] = dispatches_df['CheckInDate'].dt.to_period('M').astype(str)
 
-    month_options              = sorted(dispatches_df['month_year_str'].unique(), reverse=True)
+    month_options               = sorted(dispatches_df['month_year_str'].unique(), reverse=True)
     month_options_chronological = sorted(dispatches_df['month_year_str'].unique(), reverse=False)
 
     # --- Top-Level KPI Summary Row ---
-    latest_month  = month_options[0]
+    latest_month   = month_options[0]
     previous_month = month_options[1] if len(month_options) > 1 else None
 
-    latest_df   = dispatches_df[dispatches_df['month_year_str'] == latest_month]
-    prev_df     = dispatches_df[dispatches_df['month_year_str'] == previous_month] if previous_month else None
+    latest_df = dispatches_df[dispatches_df['month_year_str'] == latest_month]
+    prev_df   = dispatches_df[dispatches_df['month_year_str'] == previous_month] if previous_month else None
 
     def calc_metrics(df):
-        dxc   = df['DXC_Cost_Calc'].sum()
-        fn    = df['Total FN Pay'].sum()
-        rev   = dxc + PM_FEE
-        margin = dxc - fn + PM_FEE
+        dxc        = df['DXC_Cost_Calc'].sum()
+        fn         = df['Total FN Pay'].sum()
+        rev        = dxc + PM_FEE
+        margin     = dxc - fn + PM_FEE
         dispatches = len(df)
-        avg_res = df['Hours'].mean()
+        avg_res    = df['Hours'].mean()
         avg_margin = df['Adjusted_Profit'].mean() if 'Adjusted_Profit' in df.columns else 0
         return rev, fn, margin, dispatches, avg_res, avg_margin
 
@@ -85,29 +96,16 @@ if not dispatches_df.empty:
     else:
         p_rev = p_fn = p_margin = p_dispatches = p_avg_res = p_avg_margin = None
 
-    def delta(curr, prev):
-        return curr - prev if prev is not None else None
-
-def fmt_delta(val):
-    if val is None:
-        return None
-    return f"-${abs(val):,.0f}" if val < 0 else f"${val:,.0f}"
-
-def fmt_delta_2f(val):
-    if val is None:
-        return None
-    return f"-${abs(val):,.2f}" if val < 0 else f"${val:,.2f}"
-
     st.markdown(f"#### Executive Summary — {latest_month}")
     st.caption("Month-over-month snapshot of top-line business performance. Deltas compare to the prior month.")
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=fmt_delta(delta(rev, p_rev)),               delta_color="normal")
-    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=fmt_delta(delta(fn, p_fn)),                  delta_color="inverse")
-    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=fmt_delta(delta(margin, p_margin)),          delta_color="normal")
-    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=f"{delta(dispatches, p_dispatches):,}"       if p_dispatches else None, delta_color="normal")
-    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=f"{delta(avg_res, p_avg_res):.1f} hrs"       if p_avg_res    else None, delta_color="inverse")
-    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=fmt_delta(delta(avg_margin, p_avg_margin)),  delta_color="normal")
+    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=fmt_delta(delta(rev, p_rev)),              delta_color="normal")
+    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=fmt_delta(delta(fn, p_fn)),                delta_color="inverse")
+    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=fmt_delta(delta(margin, p_margin)),        delta_color="normal")
+    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=str(delta(dispatches, p_dispatches))      if p_dispatches is not None else None, delta_color="normal")
+    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=f"{delta(avg_res, p_avg_res):.1f} hrs"    if p_avg_res    is not None else None, delta_color="inverse")
+    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=fmt_delta(delta(avg_margin, p_avg_margin)), delta_color="normal")
 
     st.markdown("---")
 
@@ -156,8 +154,8 @@ def fmt_delta_2f(val):
         st.altair_chart(stacked_bar, use_container_width=True)
 
         # Summary Insights
-        latest_rev  = monthly_summary_df[monthly_summary_df['month_year_str'] == latest_month]['Total Revenue'].values
-        prev_rev    = monthly_summary_df[monthly_summary_df['month_year_str'] == previous_month]['Total Revenue'].values if previous_month else None
+        latest_rev    = monthly_summary_df[monthly_summary_df['month_year_str'] == latest_month]['Total Revenue'].values
+        prev_rev      = monthly_summary_df[monthly_summary_df['month_year_str'] == previous_month]['Total Revenue'].values if previous_month else None
         latest_margin = monthly_summary_df[monthly_summary_df['month_year_str'] == latest_month]['Net Margin (incl. Management Fee)'].values
         prev_margin   = monthly_summary_df[monthly_summary_df['month_year_str'] == previous_month]['Net Margin (incl. Management Fee)'].values if previous_month else None
 
@@ -201,14 +199,14 @@ def fmt_delta_2f(val):
         total_fn_pay         = selected_month_df['Total FN Pay'].sum()
         profit_loss_with_fee = total_dxc_cost - total_fn_pay + PM_FEE
 
-        p_billed = (prev_month_df['DXC_Cost_Calc'].sum() + PM_FEE)               if prev_month_df is not None else None
-        p_fn     = prev_month_df['Total FN Pay'].sum()                             if prev_month_df is not None else None
-        p_pl     = (prev_month_df['DXC_Cost_Calc'].sum() - prev_month_df['Total FN Pay'].sum() + PM_FEE) if prev_month_df is not None else None
+        p_billed = (prev_month_df['DXC_Cost_Calc'].sum() + PM_FEE)                                                    if prev_month_df is not None else None
+        p_fn     = prev_month_df['Total FN Pay'].sum()                                                                 if prev_month_df is not None else None
+        p_pl     = (prev_month_df['DXC_Cost_Calc'].sum() - prev_month_df['Total FN Pay'].sum() + PM_FEE)              if prev_month_df is not None else None
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Revenue",               f"${total_billed:,.2f}",         delta=fmt_delta_2f(total_billed - p_billed)          if p_billed is not None else None, delta_color="normal")
-        col2.metric("Total Field Service Cost",    f"${total_fn_pay:,.2f}",         delta=fmt_delta_2f(total_fn_pay - p_fn)              if p_fn     is not None else None, delta_color="inverse")
-        col3.metric("Net Margin (incl. Mgmt Fee)", f"${profit_loss_with_fee:,.2f}", delta=fmt_delta_2f(profit_loss_with_fee - p_pl)      if p_pl     is not None else None, delta_color="normal")
+        col1.metric("Total Revenue",               f"${total_billed:,.2f}",         delta=fmt_delta_2f(total_billed - p_billed)         if p_billed is not None else None, delta_color="normal")
+        col2.metric("Total Field Service Cost",    f"${total_fn_pay:,.2f}",         delta=fmt_delta_2f(total_fn_pay - p_fn)             if p_fn     is not None else None, delta_color="inverse")
+        col3.metric("Net Margin (incl. Mgmt Fee)", f"${profit_loss_with_fee:,.2f}", delta=fmt_delta_2f(profit_loss_with_fee - p_pl)     if p_pl     is not None else None, delta_color="normal")
 
     # ── Tab 3: Operational Performance ────────────────────────────────────────
     with tab3:
@@ -220,18 +218,18 @@ def fmt_delta_2f(val):
         prev_breakdown_str       = month_options[month_options.index(selected_breakdown_month) + 1] if month_options.index(selected_breakdown_month) + 1 < len(month_options) else None
         prev_breakdown_df        = dispatches_df[dispatches_df['month_year_str'] == prev_breakdown_str].copy() if prev_breakdown_str else None
 
-        total_tix   = len(selected_breakdown_df)
-        avg_time    = selected_breakdown_df['Hours'].mean()
-        avg_pnl     = selected_breakdown_df['Adjusted_Profit'].mean() if 'Adjusted_Profit' in selected_breakdown_df.columns else 0
+        total_tix = len(selected_breakdown_df)
+        avg_time  = selected_breakdown_df['Hours'].mean()
+        avg_pnl   = selected_breakdown_df['Adjusted_Profit'].mean() if 'Adjusted_Profit' in selected_breakdown_df.columns else 0
 
-        p_tix  = len(prev_breakdown_df)                                                                     if prev_breakdown_df is not None else None
-        p_time = prev_breakdown_df['Hours'].mean()                                                          if prev_breakdown_df is not None else None
-        p_pnl  = prev_breakdown_df['Adjusted_Profit'].mean() if 'Adjusted_Profit' in prev_breakdown_df.columns else None if prev_breakdown_df is not None else None
+        p_tix  = len(prev_breakdown_df)                                                                                if prev_breakdown_df is not None else None
+        p_time = prev_breakdown_df['Hours'].mean()                                                                     if prev_breakdown_df is not None else None
+        p_pnl  = prev_breakdown_df['Adjusted_Profit'].mean() if 'Adjusted_Profit' in prev_breakdown_df.columns else 0 if prev_breakdown_df is not None else None
 
         col_t, col_a, col_p = st.columns(3)
-        col_t.metric("Total Dispatches",           f"{total_tix:,}",          delta=f"{total_tix - p_tix:,}"           if p_tix  is not None else None)
-        col_a.metric("Avg. Resolution Time",       f"{avg_time:.2f} hrs",     delta=f"{avg_time - p_time:.2f} hrs"     if p_time is not None else None, delta_color="inverse")
-        col_p.metric("Avg. Net Margin / Dispatch", f"${avg_pnl:,.2f}",        delta=f"${avg_pnl - p_pnl:,.2f}"        if p_pnl  is not None else None)
+        col_t.metric("Total Dispatches",           f"{total_tix:,}",      delta=str(total_tix - p_tix)           if p_tix  is not None else None, delta_color="normal")
+        col_a.metric("Avg. Resolution Time",       f"{avg_time:.2f} hrs", delta=f"{avg_time - p_time:.2f} hrs"   if p_time is not None else None, delta_color="inverse")
+        col_p.metric("Avg. Net Margin / Dispatch", f"${avg_pnl:,.2f}",    delta=fmt_delta_2f(avg_pnl - p_pnl)   if p_pnl  is not None else None, delta_color="normal")
 
         st.markdown("---")
         st.subheader(f"Dispatch Volume by Location — {selected_breakdown_month}")
@@ -334,9 +332,7 @@ def fmt_delta_2f(val):
                 filtered_by_subtype = monthly_filtered_data[monthly_filtered_data['Subtype'] == selected_subtype]
                 if not filtered_by_subtype.empty:
                     site_breakdown = filtered_by_subtype.groupby('Site').agg(count=('CheckInDate', 'count')).reset_index().sort_values('count', ascending=False)
-
                     st.markdown(f'#### Location Distribution — "{selected_subtype}" ({selected_period})')
-
                     bar_breakdown = alt.Chart(site_breakdown).mark_bar(color=COLOR_TEAL).encode(
                         x=alt.X('Site', title='Location', sort='-y',
                                 axis=alt.Axis(labelAngle=-45, labelFontSize=12, titleFontSize=13)),
@@ -347,12 +343,11 @@ def fmt_delta_2f(val):
                         title=alt.TitleParams(f'Location Distribution — "{selected_subtype}"', fontSize=16, fontWeight='bold'),
                         height=350
                     ).configure_view(strokeWidth=0).configure_axis(grid=False)
-
                     st.altair_chart(bar_breakdown, use_container_width=True)
                 else:
                     st.info("No location data found for this service category.")
             else:
                 st.info("Select a service category from the dropdown or the chart to view the Location Breakdown.")
 
-    else:
-        st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+else:
+    st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
