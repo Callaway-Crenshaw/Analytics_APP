@@ -353,6 +353,5 @@ def fmt_delta_2f(val):
                     st.info("No location data found for this service category.")
             else:
                 st.info("Select a service category from the dropdown or the chart to view the Location Breakdown.")
-
-else:
-    st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+    else:
+        st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
