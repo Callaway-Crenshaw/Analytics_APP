@@ -86,7 +86,7 @@ if not dispatches_df.empty:
         p_rev = p_fn = p_margin = p_dispatches = p_avg_res = p_avg_margin = None
 
     def delta(curr, prev):
-        return curr - prev if prev is not None else None
+    return curr - prev if prev is not None else None
 
 def fmt_delta(val):
     if val is None:
@@ -353,5 +353,6 @@ def fmt_delta_2f(val):
                     st.info("No location data found for this service category.")
             else:
                 st.info("Select a service category from the dropdown or the chart to view the Location Breakdown.")
-    else:
-        st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
+
+else:
+    st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
