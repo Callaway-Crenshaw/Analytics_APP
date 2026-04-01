@@ -26,105 +26,88 @@ def fetch_data():
     return pd.DataFrame(data)
 
 # Set up the Streamlit app
-st.set_page_config(page_title="Analytics Dashboard", layout="wide")
-st.title("Analytics Reporting Dashboard 📊")
+st.set_page_config(page_title="Operations & Revenue Intelligence Dashboard", layout="wide")
+st.title("Operations & Revenue Intelligence Dashboard")
 
 dispatches_df = fetch_data()
 
 # Define PM_FEE placeholder if not globally defined (to prevent errors in calculation)
-# Replace '0' with the actual constant value for PM_FEE if known.
 if 'PM_FEE' not in locals() and 'PM_FEE' not in globals():
-    PM_FEE = 0 
+    PM_FEE = 0
 
 if not dispatches_df.empty:
     # --- Pre-processing data for all sections ---
-    # Convert CheckInDate to datetime and extract month/year
     dispatches_df['CheckInDate'] = pd.to_datetime(dispatches_df['CheckInDate'])
-    
-    # Ensure numeric columns exist and fill NaNs
+
     dispatches_df['Multiplier'] = pd.to_numeric(dispatches_df.get('Multiplier', pd.Series([0] * len(dispatches_df))), errors='coerce').fillna(0)
     dispatches_df['Total DXC Pay'] = pd.to_numeric(dispatches_df.get('Total DXC Pay', pd.Series([0] * len(dispatches_df))), errors='coerce').fillna(0)
     dispatches_df['Total FN Pay'] = pd.to_numeric(dispatches_df.get('Total FN Pay', pd.Series([0] * len(dispatches_df))), errors='coerce').fillna(0)
     dispatches_df['Hours'] = pd.to_numeric(dispatches_df.get('Hours', pd.Series([0] * len(dispatches_df))), errors='coerce').fillna(0)
-    
-    # Calculate DXC_Cost_Calc and PNL for the entire DataFrame
+
     dispatches_df['DXC_Cost_Calc'] = dispatches_df['Multiplier'] * dispatches_df['Total DXC Pay']
-    # Corrected PNL calculation to be on a per-ticket basis
     dispatches_df['PNL'] = dispatches_df['DXC_Cost_Calc'] - dispatches_df['Total FN Pay']
 
-    # --- Month at a Glance Section ---
-    with st.expander("### **Month at a Glance**"):
-        # Create month_year for the dropdown and for grouping
+    # --- Monthly Executive Summary Section ---
+    with st.expander("### **Monthly Executive Summary**"):
         dispatches_df['month_year_str'] = dispatches_df['CheckInDate'].dt.to_period('M').astype(str)
-        
-        # Get a list of unique months for the dropdown (newest to oldest)
+
         month_options = sorted(dispatches_df['month_year_str'].unique(), reverse=True)
-        # Get a list of unique months for the chart (oldest to newest)
         month_options_chronological = sorted(dispatches_df['month_year_str'].unique(), reverse=False)
 
         selected_month_str = st.selectbox("Select a Month", month_options)
-        
-        # Filter the dataframe for the selected month
+
         selected_month_df = dispatches_df[dispatches_df['month_year_str'] == selected_month_str].copy()
-        
-        # Calculate metrics for the selected month
+
         total_dxc_cost = selected_month_df['DXC_Cost_Calc'].sum()
         total_billed = total_dxc_cost + 6000
         total_fn_pay = selected_month_df['Total FN Pay'].sum()
         profit_loss = total_dxc_cost - total_fn_pay
         profit_loss_with_fee = profit_loss + PM_FEE
-        
-        # Display the metrics
+
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
-            st.metric(label="Total Billed:", value=f"${total_billed:,.2f}")
-        
+            st.metric(label="Total Revenue", value=f"${total_billed:,.2f}")
+
         with col2:
-            st.metric(label="Total FN Pay:", value=f"${total_fn_pay:,.2f}")
-        
+            st.metric(label="Total Field Service Cost", value=f"${total_fn_pay:,.2f}")
+
         with col3:
-            st.metric(label="Profit/Loss + PM Fee:", value=f"${profit_loss_with_fee:,.2f}")
+            st.metric(label="Net Margin (incl. Management Fee)", value=f"${profit_loss_with_fee:,.2f}")
+
     st.markdown("---")
 
-    # --- Line Chart Section ---
-    with st.expander("### **Monthly Financial Trend**"):
+    # --- Revenue & Profitability Trends Section ---
+    with st.expander("### **Revenue & Profitability Trends**"):
 
-        # 1. Group the entire DataFrame (not just the selected month) by 'month_year_str'
         monthly_summary_df = dispatches_df.groupby('month_year_str').agg(
             total_dxc_cost=('DXC_Cost_Calc', 'sum'),
             total_fn_pay=('Total FN Pay', 'sum')
         ).reset_index()
 
-        # 2. Calculate the required metrics for ALL months
-        monthly_summary_df['Total Billed'] = monthly_summary_df['total_dxc_cost'] + 6000
-        monthly_summary_df['Profit/Loss'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
-        monthly_summary_df['Profit/Loss + PM Fee'] = monthly_summary_df['Profit/Loss'] + PM_FEE
+        monthly_summary_df['Total Revenue'] = monthly_summary_df['total_dxc_cost'] + 6000
+        monthly_summary_df['Net Margin'] = monthly_summary_df['total_dxc_cost'] - monthly_summary_df['total_fn_pay']
+        monthly_summary_df['Net Margin (incl. Management Fee)'] = monthly_summary_df['Net Margin'] + PM_FEE
 
-        # 3. Rename the 'total_fn_pay' column for cleaner chart labeling
-        monthly_summary_df.rename(columns={'total_fn_pay': 'Total FN Pay'}, inplace=True)
+        monthly_summary_df.rename(columns={'total_fn_pay': 'Total Field Service Cost'}, inplace=True)
 
-        # 4. Prepare the data for Altair by melting it (long format)
         chart_data = monthly_summary_df.melt(
             id_vars=['month_year_str'],
-            value_vars=['Total Billed', 'Total FN Pay', 'Profit/Loss + PM Fee'],
+            value_vars=['Total Revenue', 'Total Field Service Cost', 'Net Margin (incl. Management Fee)'],
             var_name='Metric',
             value_name='Value'
         )
 
-        # 5. Create the Altair line chart (Line Layer)
         line_chart = alt.Chart(chart_data).mark_line().encode(
-            # X-axis: Sorted OLDEST to NEWEST
             x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
             y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
             color='Metric',
             tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
         )
 
-        # 6. Create the Altair point chart (Point Layer - for bigger points)
         point_layer = alt.Chart(chart_data).mark_point(
-            filled=True, 
-            size=100 # Adjusted point size
+            filled=True,
+            size=100
         ).encode(
             x=alt.X('month_year_str', sort=month_options_chronological),
             y=alt.Y('Value'),
@@ -132,300 +115,249 @@ if not dispatches_df.empty:
             tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
         )
 
-        # 7. Combine the layers and display the final chart
         final_chart = (line_chart + point_layer).properties(
-            title='Total Billed, Pay, and Profit/Loss over Time'
+            title='Revenue, Field Service Cost & Net Margin — Monthly Overview'
         ).interactive()
 
         st.altair_chart(final_chart, use_container_width=True)
 
-        # --- End of Line Chart Section ---
-
     st.markdown("---")
 
-    # --- Monthly Breakdown Section with Month Selector and Bar Chart ---
-    with st.expander("### **Monthly Breakdown**"):
-        # Create a separate month selector for this section
+    # --- Operational Performance Summary Section ---
+    with st.expander("### **Operational Performance Summary**"):
         breakdown_month_options = sorted(dispatches_df['month_year_str'].unique(), reverse=True)
         selected_breakdown_month = st.selectbox("Select Month for Breakdown", breakdown_month_options, key='breakdown_month_selector')
-        
-        # Filter the dataframe based on the new selector
+
         selected_breakdown_df = dispatches_df[dispatches_df['month_year_str'] == selected_breakdown_month].copy()
 
-        # Display Metrics
         col_tickets, col_avg_time, col_avg_pnl = st.columns(3)
-        
-        # 1. Total Tickets for the month
+
         total_tickets = len(selected_breakdown_df)
-        
-        # 2. Average Time to Close
         avg_time_to_close = selected_breakdown_df['Hours'].mean()
-        
-        # 3. Average Profit/Loss per Ticket
         avg_pnl_per_ticket = selected_breakdown_df['Adjusted_Profit'].mean()
-        
-        # Display the metrics
+
         with col_tickets:
-            st.metric(label="Total Tickets", value=total_tickets)
-        
+            st.metric(label="Total Dispatches", value=total_tickets)
+
         with col_avg_time:
-            st.metric(label="Avg Time to Close", value=f"{avg_time_to_close:.2f} hrs")
+            st.metric(label="Avg. Resolution Time", value=f"{avg_time_to_close:.2f} hrs")
 
         with col_avg_pnl:
-            st.metric(label="Avg P/L per Ticket", value=f"${avg_pnl_per_ticket:,.2f}")
-        
+            st.metric(label="Avg. Net Margin per Dispatch", value=f"${avg_pnl_per_ticket:,.2f}")
+
         st.markdown("---")
-        
-        # --- Bar Chart: Tickets per Site for the selected month ---
-        st.subheader(f"Tickets Per Site for {selected_breakdown_month}")
-        
-        # Calculate tickets per site
+
+        st.subheader(f"Dispatch Volume by Location — {selected_breakdown_month}")
+
         tickets_per_site = selected_breakdown_df.groupby('Site').agg(
-            total_tickets=('CheckInDate', 'count')
+            total_dispatches=('CheckInDate', 'count')
         ).reset_index()
 
-        # Create the bar chart
         bar_chart_site = alt.Chart(tickets_per_site).mark_bar().encode(
-            x=alt.X('Site', title='Site', sort=None),
-            y=alt.Y('total_tickets', title='Total Tickets'),
+            x=alt.X('Site', title='Location', sort=None),
+            y=alt.Y('total_dispatches', title='Total Dispatches'),
             tooltip=[
-                alt.Tooltip('Site', title='Site'),
-                alt.Tooltip('total_tickets', title='Total Tickets', format=',')
+                alt.Tooltip('Site', title='Location'),
+                alt.Tooltip('total_dispatches', title='Total Dispatches', format=',')
             ]
         ).properties(
-            title=f'Tickets Per Site in {selected_breakdown_month}'
+            title=f'Dispatch Volume by Location — {selected_breakdown_month}'
         )
         st.altair_chart(bar_chart_site, use_container_width=True)
-    
+
     st.markdown("---")
-    
-    # --- Monthly Trend Analysis with dynamic chart layering ---
-    with st.expander("### **Monthly Trend Analysis**"):
-        # Get data ready for trend analysis
+
+    # --- Key Performance Indicators Section ---
+    with st.expander("### **Key Performance Indicators (KPIs)**"):
         monthly_data = dispatches_df.groupby(pd.Grouper(key='CheckInDate', freq='ME')).agg(
-            total_tickets=('CheckInDate', 'count'),
+            total_dispatches=('CheckInDate', 'count'),
             total_dxc_cost=('DXC_Cost_Calc', 'sum'),
             total_fn_pay=('Total FN Pay', 'sum'),
             avg_hours=('Hours', 'mean'),
             avg_pnl_per_ticket=('Adjusted_Profit', 'mean')
         ).reset_index()
 
-        # Calculate monthly profit/loss (still needed for context, but not charted)
         monthly_data['profit_loss'] = monthly_data['total_dxc_cost'] - monthly_data['total_fn_pay']
         monthly_data['profit_loss_with_fee'] = monthly_data['profit_loss'] + PM_FEE
-        
-        # Add a new column with formatted month/year string for the x-axis labels
         monthly_data['month_label'] = monthly_data['CheckInDate'].dt.strftime('%m/%y')
-        
-        # Create a consistent sort order (oldest to newest)
+
         month_sort_order = monthly_data['month_label'].tolist()
 
-        # --- CHART 1: Number of Tickets ---
-        st.markdown("#### Number of Tickets Over Time")
-        
+        st.markdown("#### Monthly Dispatch Volume")
+
         tickets_chart = alt.Chart(monthly_data).mark_line(point=True, color='#1f77b4').encode(
             x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
-            y=alt.Y('total_tickets', title='Number of Tickets', axis=alt.Axis(titleColor='#1f77b4')),
+            y=alt.Y('total_dispatches', title='Number of Dispatches', axis=alt.Axis(titleColor='#1f77b4')),
             tooltip=[
                 alt.Tooltip('month_label', title='Month'),
-                alt.Tooltip('total_tickets', title='Total Tickets', format=','),
+                alt.Tooltip('total_dispatches', title='Total Dispatches', format=','),
             ]
         ).properties(
-            title="Monthly Ticket Volume"
+            title="Monthly Dispatch Volume"
         ).interactive()
 
         st.altair_chart(tickets_chart, use_container_width=True)
-        
-        # --- CHART 2: Average Time to Close ---
-        st.markdown("#### Average Time to Close")
+
+        st.markdown("#### Avg. Resolution Time")
 
         avg_time_chart = alt.Chart(monthly_data).mark_line(point=True, color='#9467bd').encode(
             x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
-            y=alt.Y('avg_hours', title='Avg. Time (Hours)', axis=alt.Axis(titleColor='#9467bd')),
+            y=alt.Y('avg_hours', title='Avg. Resolution Time (Hours)', axis=alt.Axis(titleColor='#9467bd')),
             tooltip=[
                 alt.Tooltip('month_label', title='Month'),
-                alt.Tooltip('avg_hours', title='Avg. Time', format='.2f'),
+                alt.Tooltip('avg_hours', title='Avg. Resolution Time', format='.2f'),
             ]
         ).properties(
-            title="Monthly Average Hours per Ticket"
+            title="Monthly Avg. Resolution Time per Dispatch"
         ).interactive()
-        
+
         st.altair_chart(avg_time_chart, use_container_width=True)
 
-        # --- CHART 3: Average P/L per Ticket ---
-        st.markdown("#### Average Profit/Loss per Ticket")
-        
+        st.markdown("#### Avg. Net Margin per Dispatch")
+
         avg_pnl_chart = alt.Chart(monthly_data).mark_line(point=True, color='#2ca02c').encode(
             x=alt.X('month_label', sort=month_sort_order, axis=alt.Axis(title="Month", labelAngle=-45)),
-            y=alt.Y('avg_pnl_per_ticket', title='Avg. P/L per Ticket ($)', axis=alt.Axis(titleColor='#2ca02c', format='$,.0f')),
+            y=alt.Y('avg_pnl_per_ticket', title='Avg. Net Margin per Dispatch ($)', axis=alt.Axis(titleColor='#2ca02c', format='$,.0f')),
             tooltip=[
                 alt.Tooltip('month_label', title='Month'),
-                alt.Tooltip('avg_pnl_per_ticket', title='Avg P/L per Ticket', format='$,.2f')
+                alt.Tooltip('avg_pnl_per_ticket', title='Avg. Net Margin per Dispatch', format='$,.2f')
             ]
         ).properties(
-            title="Monthly Average Profit/Loss"
+            title="Monthly Avg. Net Margin per Dispatch"
         ).interactive()
 
         st.altair_chart(avg_pnl_chart, use_container_width=True)
-        
+
     st.markdown("---")
 
-    # --- Average Ticket Count per Site & Month ---
-    with st.expander("### **Average Ticket Count per Site & Month**"):
-        # Display the charts in columns for a clean layout
+    # --- Dispatch Volume by Location & Period ---
+    with st.expander("### **Dispatch Volume by Location & Period**"):
         col_site, col_month = st.columns(2)
-        
-        # --- Chart 1: Average Ticket Count per Site (Monthly) ---
+
         with col_site:
-            st.subheader("Per Site")
-            # Calculate average tickets by site per month
+            st.subheader("Per Location")
             tickets_per_site_per_month = dispatches_df.groupby(['Site', 'month_year_str']).agg(
                 count=('CheckInDate', 'count')
             ).reset_index()
 
-            # Calculate the average monthly ticket count per site
             avg_tickets_by_site = tickets_per_site_per_month.groupby('Site').agg(
-                avg_tickets=('count', 'mean')
+                avg_dispatches=('count', 'mean')
             ).reset_index()
-            
-            # Create the bar chart
+
             bar_chart_site = alt.Chart(avg_tickets_by_site).mark_bar().encode(
-                x=alt.X('Site', title='Site', sort=None),
-                y=alt.Y('avg_tickets', title='Avg. Monthly Ticket Count'),
+                x=alt.X('Site', title='Location', sort=None),
+                y=alt.Y('avg_dispatches', title='Avg. Monthly Dispatch Count'),
                 tooltip=[
-                    alt.Tooltip('Site', title='Site'),
-                    alt.Tooltip('avg_tickets', title='Avg. Tickets', format='.2f')
+                    alt.Tooltip('Site', title='Location'),
+                    alt.Tooltip('avg_dispatches', title='Avg. Dispatches', format='.2f')
                 ]
             ).properties(
-                title='Avg. Ticket Count per Site (Monthly)'
+                title='Avg. Dispatch Count per Location (Monthly)'
             )
             st.altair_chart(bar_chart_site, use_container_width=True)
-            
-        # --- Chart 2: Average Ticket Count per Month ---
+
         with col_month:
-            st.subheader("Per Month")
-            # Group by month and calculate average ticket count
+            st.subheader("Per Period")
             tickets_by_month = dispatches_df.groupby('month_year_str').agg(
                 count=('CheckInDate', 'count')
             ).reset_index()
 
-            # Create the line chart
             line_chart_month = alt.Chart(tickets_by_month).mark_line(point=True).encode(
                 x=alt.X('month_year_str', title='Month', sort=None, axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y('count', title='Ticket Count'),
+                y=alt.Y('count', title='Dispatch Count'),
                 tooltip=[
                     alt.Tooltip('month_year_str', title='Month'),
-                    alt.Tooltip('count', title='Tickets', format=',')
+                    alt.Tooltip('count', title='Dispatches', format=',')
                 ]
             ).properties(
-                title='Ticket Count per Month'
+                title='Dispatch Count per Period'
             )
             st.altair_chart(line_chart_month, use_container_width=True)
+
     st.markdown("---")
 
-
-    # --- Pie Chart: Subtype & Site Breakdown ---
-    with st.expander("### **Subtype & Site Breakdown**", expanded=True):
+    # --- Service Category & Location Analysis ---
+    with st.expander("### **Service Category & Location Analysis**", expanded=True):
         col1, col2 = st.columns(2)
 
-        # Drop null values for Subtype
         filtered_tickets = dispatches_df.dropna(subset=['Subtype', 'Item'])
-        
-        # Add a dropdown to select month for the breakdown charts
-        breakdown_month_options = ['All Tickets'] + sorted(filtered_tickets['month_year_str'].unique().tolist())
-        selected_breakdown_month_pie = st.selectbox("Select a Month for Breakdown", breakdown_month_options)
 
-        # Filter data based on month selection for breakdown charts
-        if selected_breakdown_month_pie != 'All Tickets':
+        breakdown_month_options = ['All Periods'] + sorted(filtered_tickets['month_year_str'].unique().tolist())
+        selected_breakdown_month_pie = st.selectbox("Select a Period for Analysis", breakdown_month_options)
+
+        if selected_breakdown_month_pie != 'All Periods':
             monthly_filtered_data = filtered_tickets[filtered_tickets['month_year_str'] == selected_breakdown_month_pie]
         else:
             monthly_filtered_data = filtered_tickets.copy()
 
-        # --- LEFT COLUMN: Interactive Subtype Breakdown Chart ---
         with col1:
             data_to_chart_subtype = monthly_filtered_data.groupby('Subtype').agg(
                 count=('CheckInDate', 'count')
             ).reset_index()
-            
-            # Create a selection that can be clicked on the chart
+
             selection = alt.selection_point(
                 fields=['Subtype'],
                 on="click",
                 name="selection"
             )
 
-            # Create the base pie chart
             base_pie_subtype = alt.Chart(data_to_chart_subtype).encode(
                 theta=alt.Theta("count", stack=True),
-                color=alt.Color("Subtype"),
+                color=alt.Color("Subtype", title="Service Category"),
                 order=alt.Order("count", sort="descending"),
-                tooltip=["Subtype", "count"]
+                tooltip=[alt.Tooltip("Subtype", title="Service Category"), "count"]
             ).properties(
-                title=f'Ticket Breakdown by Subtype for {selected_breakdown_month_pie}'
+                title=f'Service Category Distribution — {selected_breakdown_month_pie}'
             )
 
-            # Pie chart with selection
             pie_chart_subtype = base_pie_subtype.mark_arc(outerRadius=120)
-            
-            # Final combined chart with interactive selection
             combined_chart_subtype = pie_chart_subtype.add_params(selection)
-            
             st.altair_chart(combined_chart_subtype, use_container_width=True)
-            
-            # Retrieve the selection from the chart
+
             selected_subtype_from_chart = None
             if st.session_state and st.session_state.selection:
                 selected_subtype_from_chart = st.session_state.selection.get('Subtype', [None])[0]
-            
-            # Get the list of subtype options for the dropdown
-            subtype_options = ['All Subtypes'] + sorted(data_to_chart_subtype['Subtype'].unique().tolist())
-            
-            # Determine the initial value for the selectbox
+
+            subtype_options = ['All Service Categories'] + sorted(data_to_chart_subtype['Subtype'].unique().tolist())
+
             initial_index = 0
             if selected_subtype_from_chart and selected_subtype_from_chart in subtype_options:
                 initial_index = subtype_options.index(selected_subtype_from_chart)
-            
-            # Use the selected subtype from either the dropdown or the chart click
+
             selected_subtype = st.selectbox(
-                "Select a Subtype to view Site Breakdown:",
+                "Select a Service Category to view Location Breakdown:",
                 options=subtype_options,
                 index=initial_index,
                 key='subtype_select_box',
             )
 
-
-        # --- RIGHT COLUMN: Site Breakdown Table -> NOW BAR CHART ---
         with col2:
-            if selected_subtype != 'All Subtypes':
-                # Filter data for the selected subtype
+            if selected_subtype != 'All Service Categories':
                 filtered_by_subtype = monthly_filtered_data[monthly_filtered_data['Subtype'] == selected_subtype]
-                
+
                 if not filtered_by_subtype.empty:
-                    # Group by site and count tickets for the selected subtype
                     site_breakdown = filtered_by_subtype.groupby('Site').agg(
                         count=('CheckInDate', 'count')
                     ).reset_index()
 
-                    st.markdown(f'#### Site Breakdown for "{selected_subtype}" ({selected_breakdown_month_pie})')
-                    
-                    # Create the bar chart for site breakdown
+                    st.markdown(f'#### Location Breakdown — "{selected_subtype}" ({selected_breakdown_month_pie})')
+
                     bar_chart_site_breakdown = alt.Chart(site_breakdown).mark_bar().encode(
-                        x=alt.X('Site', title='Site', sort='-y'), # Sort bars by count in descending order
-                        y=alt.Y('count', title='Ticket Count'),
+                        x=alt.X('Site', title='Location', sort='-y'),
+                        y=alt.Y('count', title='Dispatch Count'),
                         tooltip=[
-                            alt.Tooltip('Site', title='Site'),
-                            alt.Tooltip('count', title='Tickets', format=',')
+                            alt.Tooltip('Site', title='Location'),
+                            alt.Tooltip('count', title='Dispatches', format=',')
                         ]
                     ).properties(
-                        title=f'Site Breakdown for "{selected_subtype}"'
+                        title=f'Location Distribution — "{selected_subtype}"'
                     )
-                    
                     st.altair_chart(bar_chart_site_breakdown, use_container_width=True)
 
                 else:
-                    st.info("No site data found for this subtype.")
+                    st.info("No location data found for this service category.")
             else:
-                st.info("Select a subtype from the dropdown or the pie chart to view the Site Breakdown.")
+                st.info("Select a service category from the dropdown or the chart to view the Location Breakdown.")
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
