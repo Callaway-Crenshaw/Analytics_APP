@@ -105,7 +105,7 @@ if not dispatches_df.empty:
     k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=fmt_delta(delta(margin, p_margin)),        delta_color="normal")
     k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=str(delta(dispatches, p_dispatches))      if p_dispatches is not None else None, delta_color="normal")
     k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=f"{delta(avg_res, p_avg_res):.1f} hrs"    if p_avg_res    is not None else None, delta_color="inverse")
-    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=fmt_delta(delta(avg_margin, p_avg_margin)), delta_color="normal")
+    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.2f}", delta=fmt_delta(delta(avg_margin, p_avg_margin)), delta_color="normal")
 
     st.markdown("---")
 
