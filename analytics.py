@@ -92,12 +92,12 @@ if not dispatches_df.empty:
     st.caption("Month-over-month snapshot of top-line business performance. Deltas compare to the prior month.")
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=f"${delta(rev, p_rev):,.0f}"                if p_rev        else None)
-    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=f"${delta(fn, p_fn):,.0f}"                  if p_fn         else None, delta_color="inverse")
-    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=f"${delta(margin, p_margin):,.0f}"          if p_margin     else None)
-    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=f"{delta(dispatches, p_dispatches):,}"      if p_dispatches else None)
-    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=f"{delta(avg_res, p_avg_res):.1f} hrs"      if p_avg_res    else None, delta_color="inverse")
-    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=f"${delta(avg_margin, p_avg_margin):,.0f}"  if p_avg_margin else None)
+    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=round(delta(rev, p_rev), 2)               if p_rev        else None)
+    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=round(delta(fn, p_fn), 2)                   if p_fn         else None, delta_color="inverse")
+    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=round(delta(margin, p_margin), 2)           if p_margin     else None)
+    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=round(delta(dispatches, p_dispatches), 2)   if p_dispatches else None)
+    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=round(delta(avg_res, p_avg_res), 2)         if p_avg_res    else None, delta_color="inverse")
+    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=round(delta(avg_margin, p_avg_margin), 2)   if p_avg_margin else None)
 
     st.markdown("---")
 
