@@ -98,12 +98,33 @@ if not dispatches_df.empty:
             value_name='Value'
         )
 
-        final_chart = alt.Chart(chart_data).mark_bar().encode(
+        # Stacked bar: Net Margin + Field Service Cost
+        stack_data = chart_data[chart_data['Metric'].isin(['Total Field Service Cost', 'Net Margin (incl. Management Fee)'])]
+        stacked_bars = alt.Chart(stack_data).mark_bar().encode(
             x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
             y=alt.Y('Value', stack='zero', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
             color=alt.Color('Metric', legend=alt.Legend(title="Metric")),
             tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-        ).properties(
+        )
+
+        # Total Revenue as a reference line
+        revenue_data = chart_data[chart_data['Metric'] == 'Total Revenue']
+        revenue_line = alt.Chart(revenue_data).mark_line(
+            color='#d62728', strokeWidth=2, strokeDash=[5, 3]
+        ).encode(
+            x=alt.X('month_year_str', sort=month_options_chronological),
+            y=alt.Y('Value'),
+            tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+        )
+        revenue_points = alt.Chart(revenue_data).mark_point(
+            color='#d62728', filled=True, size=60
+        ).encode(
+            x=alt.X('month_year_str', sort=month_options_chronological),
+            y=alt.Y('Value'),
+            tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
+        )
+
+        final_chart = (stacked_bars + revenue_line + revenue_points).properties(
             title='Revenue, Field Service Cost & Net Margin — Monthly Overview'
         ).interactive()
 
