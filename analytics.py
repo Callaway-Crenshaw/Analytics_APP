@@ -86,7 +86,7 @@ if not dispatches_df.empty:
         p_rev = p_fn = p_margin = p_dispatches = p_avg_res = p_avg_margin = None
 
     def delta(curr, prev):
-    return curr - prev if prev is not None else None
+        return curr - prev if prev is not None else None
 
 def fmt_delta(val):
     if val is None:
