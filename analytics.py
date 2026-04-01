@@ -92,12 +92,12 @@ if not dispatches_df.empty:
     st.caption("Month-over-month snapshot of top-line business performance. Deltas compare to the prior month.")
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=round(delta(rev, p_rev), 2)               if p_rev        else None)
-    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=round(delta(fn, p_fn), 2)                   if p_fn         else None, delta_color="inverse")
-    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=round(delta(margin, p_margin), 2)           if p_margin     else None)
-    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=round(delta(dispatches, p_dispatches), 2)   if p_dispatches else None)
-    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=round(delta(avg_res, p_avg_res), 2)         if p_avg_res    else None, delta_color="inverse")
-    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=round(delta(avg_margin, p_avg_margin), 2)   if p_avg_margin else None)
+    k1.metric("Total Revenue",               f"${rev:,.0f}",        delta=f"${delta(rev, p_rev):,.0f}"               if p_rev        else None, delta_color="normal")
+    k2.metric("Total Field Service Cost",    f"${fn:,.0f}",         delta=f"${delta(fn, p_fn):,.0f}"                  if p_fn         else None, delta_color="inverse")
+    k3.metric("Net Margin (incl. Mgmt Fee)", f"${margin:,.0f}",     delta=f"${delta(margin, p_margin):,.0f}"          if p_margin     else None, delta_color="normal")
+    k4.metric("Total Dispatches",            f"{dispatches:,}",     delta=f"{delta(dispatches, p_dispatches):,}"      if p_dispatches else None, delta_color="normal")
+    k5.metric("Avg. Resolution Time",        f"{avg_res:.1f} hrs",  delta=f"{delta(avg_res, p_avg_res):.1f} hrs"      if p_avg_res    else None, delta_color="inverse")
+    k6.metric("Avg. Net Margin / Dispatch",  f"${avg_margin:,.0f}", delta=f"${delta(avg_margin, p_avg_margin):,.0f}"  if p_avg_margin else None, delta_color="normal")
 
     st.markdown("---")
 
@@ -196,9 +196,9 @@ if not dispatches_df.empty:
         p_pl     = (prev_month_df['DXC_Cost_Calc'].sum() - prev_month_df['Total FN Pay'].sum() + PM_FEE) if prev_month_df is not None else None
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Revenue",               f"${total_billed:,.2f}",        delta=f"${total_billed - p_billed:,.2f}"               if p_billed is not None else None)
-        col2.metric("Total Field Service Cost",    f"${total_fn_pay:,.2f}",        delta=f"${total_fn_pay - p_fn:,.2f}"                   if p_fn     is not None else None)
-        col3.metric("Net Margin (incl. Mgmt Fee)", f"${profit_loss_with_fee:,.2f}", delta=f"${profit_loss_with_fee - p_pl:,.2f}"           if p_pl     is not None else None)
+        col1.metric("Total Revenue",               f"${total_billed:,.2f}",         delta=f"${total_billed - p_billed:,.2f}"          if p_billed is not None else None, delta_color="normal")
+        col2.metric("Total Field Service Cost",    f"${total_fn_pay:,.2f}",         delta=f"${total_fn_pay - p_fn:,.2f}"              if p_fn     is not None else None, delta_color="inverse")
+        col3.metric("Net Margin (incl. Mgmt Fee)", f"${profit_loss_with_fee:,.2f}", delta=f"${profit_loss_with_fee - p_pl:,.2f}"      if p_pl     is not None else None, delta_color="normal")
 
     # ── Tab 3: Operational Performance ────────────────────────────────────────
     with tab3:
