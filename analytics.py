@@ -98,24 +98,12 @@ if not dispatches_df.empty:
             value_name='Value'
         )
 
-        line_chart = alt.Chart(chart_data).mark_line().encode(
+        final_chart = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X('month_year_str', sort=month_options_chronological, title="Month"),
-            y=alt.Y('Value', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
-            color='Metric',
+            y=alt.Y('Value', stack='zero', title="Amount ($)", axis=alt.Axis(format='$,.0f')),
+            color=alt.Color('Metric', legend=alt.Legend(title="Metric")),
             tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-        )
-
-        point_layer = alt.Chart(chart_data).mark_point(
-            filled=True,
-            size=100
-        ).encode(
-            x=alt.X('month_year_str', sort=month_options_chronological),
-            y=alt.Y('Value'),
-            color='Metric',
-            tooltip=['month_year_str', 'Metric', alt.Tooltip('Value', format='$,.2f')]
-        )
-
-        final_chart = (line_chart + point_layer).properties(
+        ).properties(
             title='Revenue, Field Service Cost & Net Margin — Monthly Overview'
         ).interactive()
 
@@ -361,7 +349,3 @@ if not dispatches_df.empty:
 
 else:
     st.warning("No data found in the `live_dispatches` table. Please check your database connection and table name.")
-
-
-
-
